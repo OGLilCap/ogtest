@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>On This Day in History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+        }
+        #fact-container {
+            max-width: 80%;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.5em;
+        }
+        p {
+            font-size: 1.2em;
+        }
+        #loading {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div id="fact-container">
+        <h1>On This Day in History</h1>
+        <p id="fact"></p>
+        <div id="loading">Loading your fact...</div>
+    </div>
+
+    <script>
+        // Function to shuffle an array (Fisher-Yates shuffle)
+        function shuffleArray(array) {
+            const shuffled = array.slice(); // Copy
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Get current date for the key (month-day, ignoring year for "on this day")
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const day = now.getDate();
+        const storageKeyAll = `allEvents_${month}_${day}`;
+        const storageKeyRemaining = `remainingEvents_${month}_${day}`;
+
+        // Check if we have data in localStorage
+        let allEvents = JSON.parse(localStorage.getItem(storageKeyAll));
+        let remainingEvents = JSON.parse(localStorage.getItem(storageKeyRemaining));
+
+        // If no data or remaining is empty/not set, fetch from API
+        if (!allEvents || allEvents.length === 0) {
+            fetch(`https://history.muffinlabs.com/date/${month}/${day}`)
+                .then(response => response.json())
+                .then(data => {
+                    allEvents = data.data.Events || []; // Focus on Events; you can add Births/Deaths if wanted
+                    localStorage.setItem(storageKeyAll, JSON.stringify(allEvents));
+
+                    // Shuffle and set remaining
+                    remainingEvents = shuffleArray(allEvents);
+                    localStorage.setItem(storageKeyRemaining, JSON.stringify(remainingEvents));
+
+                    displayFact();
+                })
+                .catch(error => {
+                    document.getElementById('fact').textContent = 'Error loading fact: ' + error.message;
+                    document.getElementById('loading').style.display = 'none';
+                });
+        } else {
+            // If remaining is empty, reshuffle from allEvents
+            if (!remainingEvents || remainingEvents.length === 0) {
+                remainingEvents = shuffleArray(allEvents);
+                localStorage.setItem(storageKeyRemaining, JSON.stringify(remainingEvents));
+            }
+            displayFact();
+        }
+
+        function displayFact() {
+            if (remainingEvents && remainingEvents.length > 0) {
+                // Pop a random fact (since shuffled, just take first)
+                const event = remainingEvents.shift(); // Remove and get first
+                localStorage.setItem(storageKeyRemaining, JSON.stringify(remainingEvents)); // Update storage
+
+                document.getElementById('fact').innerHTML = `In <strong>${event.year}</strong>: ${event.text}`;
+                document.getElementById('loading').style.display = 'none';
+            } else {
+                document.getElementById('fact').textContent = 'No more facts available today. Try again tomorrow!';
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
